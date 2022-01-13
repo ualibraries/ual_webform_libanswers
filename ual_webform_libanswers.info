@@ -1,0 +1,4 @@
+name = UAL Webform LibAnswers
+description = Creates LibAnswers tickets from Webform submissions.
+core = 7.x
+package = UAL Custom

@@ -1,0 +1,118 @@
+<?php
+
+require 'vendor/autoload.php';
+
+/**
+ * Implements hook_permission().
+ */
+function ual_webform_libanswers_permission()
+{
+  return array(
+    'configure ual_webform_libanswers module' => array(
+      'title' => t('Configure UAL Webform LibAnswers module'),
+      'description' => t('Manage configuration for the UAL Webform LibAnswers module'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu()
+ */
+function ual_webform_libanswers_menu()
+{
+  $items['admin/config/system/ual_webform_libanswers'] = array(
+    'title' => 'UAL Webform LibAnswers',
+    'description' => 'Configure UAL Webform LibAnswers module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ual_webform_libanswers_form'),
+    'access arguments' => array('configure ual_webform_libanswers module'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Form constructor for the ual_webform_libanswers configuration form.
+ */
+function ual_webform_libanswers_form($form, &$form_state)
+{
+  $form['ual_webform_libanswers_client_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Client Id'),
+    '#default_value' => variable_get('ual_webform_libanswers_client_id', ''),
+    '#description' => t('LibAnswers application client id.'),
+  );
+
+  $form['ual_webform_libanswers_client_secret'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Client Secret'),
+    '#default_value' => variable_get('ual_webform_libanswers_client_secret', ''),
+    '#description' => t('LibAnswers application client secret.'),
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Implements hook_webform_submission_insert()
+ *
+ * Note that this hook is called after a submission has already been saved to
+ * the database.
+ */
+function ual_webform_libanswers_webform_submission_insert($node, $submission)
+{
+  $emails = $node->webform['emails'];
+
+  foreach ($emails as $email) {
+    $to_addrs = array_map('strtolower', explode(',', $email['email']));
+
+    if (!$email['status'] && (in_array('sc@lib.arizona.edu', $to_addrs) || in_array('lbry-askspcoll@email.arizona.edu', $to_addrs))) {
+      if ($email['template'] == 'default') {
+        $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'submission' => $submission, 'email' => $email));
+      } else {
+        $template = $email['template'];
+      }
+
+      $body = webform_replace_tokens($template, $node, $submission, $email, FALSE);
+      $from = webform_format_email_address($email['from_address'], $email['from_name'], $node, $submission, TRUE, TRUE, NULL, NULL);
+      $subject = webform_format_email_subject($email['subject'], $node, $submission);
+
+      preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
+
+      $params = [
+        'quid' => 33,
+        'pquestion' => $subject,
+        'pdetails' => $body,
+        'pname' => $matches[1],
+        'pemail' => $matches[2],
+        'ip' => $submission->remote_addr
+      ];
+
+      _create_libanswers_ticket($params);
+    }
+  }
+}
+
+function _create_libanswers_ticket($params)
+{
+  $client = new GuzzleHttp\Client(['base_uri' => 'https://ask.library.arizona.edu/api/1.1/',]);
+
+  $response = $client->request('POST', 'oauth/token', [
+    'form_params' => [
+      'client_id' => variable_get('ual_webform_libanswers_client_id'),
+      'client_secret' => variable_get('ual_webform_libanswers_client_secret'),
+      'grant_type' => 'client_credentials'
+    ]
+  ]);
+
+  $json = json_decode($response->getBody());
+  $token = $json->access_token;
+
+  $response = $client->request('POST', 'ticket/create', [
+    'form_params' => $params,
+    'headers' => [
+      'Authorization' => 'Bearer ' . $token
+    ]
+  ]);
+}
