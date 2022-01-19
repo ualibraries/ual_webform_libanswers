@@ -38,6 +38,13 @@ function ual_webform_libanswers_form($form, &$form_state)
     '#description' => t('LibAnswers application client secret.'),
   );
 
+  $form['ual_webform_libanswers_slack_webhook'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Slack Webhook'),
+    '#default_value' => variable_get('ual_webform_libanswers_slack_webhook', ''),
+    '#description' => t('Slack channel to post logs.'),
+  );
+
   return system_settings_form($form);
 }
 
@@ -58,7 +65,7 @@ function ual_webform_libanswers_webform_submission_insert($node, $submission)
   $emails = $node->webform['emails'];
 
   foreach ($emails as $email) {
-    // Email sending is disabled
+    // Email sending is unchecked
     if (!$email['status']) {
       $to_addrs = array_map('strtolower', explode(',', $email['email']));
 
@@ -85,14 +92,16 @@ function ual_webform_libanswers_webform_submission_insert($node, $submission)
             'ip' => $submission->remote_addr
           ];
 
-          _create_libanswers_ticket($params);
+          $submissionUrl = url('node/' . $submission->nid . '/submission/' . $submission->sid, array('absolute' => TRUE));
+
+          _create_libanswers_ticket($params, $submissionUrl);
         }
       }
     }
   }
 }
 
-function _create_libanswers_ticket($params)
+function _create_libanswers_ticket($params, $submissionUrl)
 {
   $client = new GuzzleHttp\Client(['base_uri' => 'https://ask.library.arizona.edu/api/1.1/',]);
 
@@ -116,8 +125,28 @@ function _create_libanswers_ticket($params)
     ]);
 
     $json = json_decode($response->getBody());
-    watchdog('ual_webform_libanswers', 'LibAnswers ticket created: https://ask.library.arizona.edu' . $json->ticketUrl, array(), WATCHDOG_INFO);
+    $ticketUrl = $json->ticketUrl;
+
+    $message = "Submission: $submissionUrl\n:rocket: LibAnswers ticket created:\nhttps://ask.library.arizona.edu$ticketUrl";
+    _post_slack_message($message);
+
+    watchdog('ual_webform_libanswers', '%submissionUrl<br>LibAnswers ticket created:<br>https://ask.library.arizona.edu%ticketUrl', array('%submissionUrl' => $submissionUrl, '%ticketUrl' => $ticketUrl), WATCHDOG_INFO);
   } catch (GuzzleHttp\Exception\RequestException $e) {
-    watchdog('ual_webform_libanswers', 'Unable to create the LibAnswers ticket: ' . $e->getMessage(), array(), WATCHDOG_ERROR);
+    $message = "<!channel> $submissionUrl\n:x: Fail to create the LibAnswers ticket:\n" . $e->getMessage();
+    _post_slack_message($message);
+
+    watchdog('ual_webform_libanswers', '%submissionUrl<br>Fail to create the LibAnswers ticket:<br>%message', array('%submissionUrl' => $submissionUrl, '%message' => $e->getMessage()), WATCHDOG_ERROR);
+  }
+}
+
+function _post_slack_message($message)
+{
+  $client = new GuzzleHttp\Client();
+  $webhook = variable_get('ual_webform_libanswers_slack_webhook');
+
+  try {
+    $client->request('POST', $webhook, ['json' => ['text' => $message]]);
+  } catch (GuzzleHttp\Exception\RequestException $e) {
+    watchdog('ual_webform_libanswers', 'Fail to send the slack message:<br>%message', array('%message' => $e->getMessage()), WATCHDOG_ERROR);
   }
 }
