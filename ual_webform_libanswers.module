@@ -3,19 +3,6 @@
 require 'vendor/autoload.php';
 
 /**
- * Implements hook_permission().
- */
-function ual_webform_libanswers_permission()
-{
-  return array(
-    'configure ual_webform_libanswers module' => array(
-      'title' => t('Configure UAL Webform LibAnswers module'),
-      'description' => t('Manage configuration for the UAL Webform LibAnswers module'),
-    ),
-  );
-}
-
-/**
  * Implements hook_menu()
  */
 function ual_webform_libanswers_menu()
@@ -25,7 +12,7 @@ function ual_webform_libanswers_menu()
     'description' => 'Configure UAL Webform LibAnswers module',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('ual_webform_libanswers_form'),
-    'access arguments' => array('configure ual_webform_libanswers module'),
+    'access arguments' => array('administer site configuration'),
     'type' => MENU_NORMAL_ITEM,
   );
 
@@ -62,34 +49,45 @@ function ual_webform_libanswers_form($form, &$form_state)
  */
 function ual_webform_libanswers_webform_submission_insert($node, $submission)
 {
+  $quid_map = [
+    'sc@lib.arizona.edu' => 33,
+    'lbry-askspcoll@email.arizona.edu' => 33,
+    '3d@lib.arizona.edu' => 820
+  ];
+
   $emails = $node->webform['emails'];
 
   foreach ($emails as $email) {
-    $to_addrs = array_map('strtolower', explode(',', $email['email']));
+    // Email sending is disabled
+    if (!$email['status']) {
+      $to_addrs = array_map('strtolower', explode(',', $email['email']));
 
-    if (!$email['status'] && (in_array('sc@lib.arizona.edu', $to_addrs) || in_array('lbry-askspcoll@email.arizona.edu', $to_addrs))) {
-      if ($email['template'] == 'default') {
-        $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'submission' => $submission, 'email' => $email));
-      } else {
-        $template = $email['template'];
+      foreach ($to_addrs as $to_addr) {
+        if (array_key_exists($to_addr, $quid_map)) {
+          if ($email['template'] == 'default') {
+            $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'submission' => $submission, 'email' => $email));
+          } else {
+            $template = $email['template'];
+          }
+
+          $body = webform_replace_tokens($template, $node, $submission, $email, FALSE);
+          $from = webform_format_email_address($email['from_address'], $email['from_name'], $node, $submission, TRUE, TRUE, NULL, NULL);
+          $subject = webform_format_email_subject($email['subject'], $node, $submission);
+
+          preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
+
+          $params = [
+            'quid' => $quid_map[$to_addr],
+            'pquestion' => $subject,
+            'pdetails' => $body,
+            'pname' => $matches[1],
+            'pemail' => $matches[2],
+            'ip' => $submission->remote_addr
+          ];
+
+          _create_libanswers_ticket($params);
+        }
       }
-
-      $body = webform_replace_tokens($template, $node, $submission, $email, FALSE);
-      $from = webform_format_email_address($email['from_address'], $email['from_name'], $node, $submission, TRUE, TRUE, NULL, NULL);
-      $subject = webform_format_email_subject($email['subject'], $node, $submission);
-
-      preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
-
-      $params = [
-        'quid' => 33,
-        'pquestion' => $subject,
-        'pdetails' => $body,
-        'pname' => $matches[1],
-        'pemail' => $matches[2],
-        'ip' => $submission->remote_addr
-      ];
-
-      _create_libanswers_ticket($params);
     }
   }
 }
@@ -98,21 +96,28 @@ function _create_libanswers_ticket($params)
 {
   $client = new GuzzleHttp\Client(['base_uri' => 'https://ask.library.arizona.edu/api/1.1/',]);
 
-  $response = $client->request('POST', 'oauth/token', [
-    'form_params' => [
-      'client_id' => variable_get('ual_webform_libanswers_client_id'),
-      'client_secret' => variable_get('ual_webform_libanswers_client_secret'),
-      'grant_type' => 'client_credentials'
-    ]
-  ]);
+  try {
+    $response = $client->request('POST', 'oauth/token', [
+      'form_params' => [
+        'client_id' => variable_get('ual_webform_libanswers_client_id'),
+        'client_secret' => variable_get('ual_webform_libanswers_client_secret'),
+        'grant_type' => 'client_credentials'
+      ]
+    ]);
 
-  $json = json_decode($response->getBody());
-  $token = $json->access_token;
+    $json = json_decode($response->getBody());
+    $token = $json->access_token;
 
-  $response = $client->request('POST', 'ticket/create', [
-    'form_params' => $params,
-    'headers' => [
-      'Authorization' => 'Bearer ' . $token
-    ]
-  ]);
+    $response = $client->request('POST', 'ticket/create', [
+      'form_params' => $params,
+      'headers' => [
+        'Authorization' => 'Bearer ' . $token
+      ]
+    ]);
+
+    $json = json_decode($response->getBody());
+    watchdog('ual_webform_libanswers', 'LibAnswers ticket created: https://ask.library.arizona.edu' . $json->ticketUrl, array(), WATCHDOG_INFO);
+  } catch (GuzzleHttp\Exception\RequestException $e) {
+    watchdog('ual_webform_libanswers', 'Unable to create the LibAnswers ticket: ' . $e->getMessage(), array(), WATCHDOG_ERROR);
+  }
 }
