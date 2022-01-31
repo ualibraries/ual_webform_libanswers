@@ -1,12 +1,22 @@
 <?php
 
-const LIBANSWERS_VAR_PREFIX = "libanswers_ticket_nid";
+
 
 /**
  * Implements hook_menu()
  */
 function ual_webform_libanswers_menu()
 {
+  $items['node/%webform_menu/webform/libanswers'] = array(
+    'title' => 'Libanswers ticket',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('libanswers_ticket_form', 1),
+    'access callback' => 'webform_node_update_access',
+    'access arguments' => array(1),
+    'file' => 'includes/ual_webform_libanswers_ticket.inc',
+    'weight' => 4,
+    'type' => MENU_LOCAL_TASK,
+  );
   $items['admin/config/system/ual_webform_libanswers'] = array(
     'title' => 'UAL Webform LibAnswers',
     'description' => 'Configure UAL Webform LibAnswers module',
@@ -63,15 +73,12 @@ function ual_webform_libanswers_webform_submission_insert($node, $submission)
   ];
 
   $emails = $node->webform['emails'];
-
   foreach ($emails as $email) {
     // Email sending is unchecked
-    //var_dump($email);
     $email_template = array(
       'template' => 'default'
     );
-    // var_dump(theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'submission' => $submission, 'email' => $email_template)));
-    var_dump(theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message')));
+
     if (false) {
       $to_addrs = array_map('strtolower', explode(',', $email['email']));
 
