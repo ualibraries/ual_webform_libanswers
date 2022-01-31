@@ -1,6 +1,27 @@
 <?php
 
+/**
+ * Implements hook_node_load()
+ */
+/**
+ * Implements hook_node_load().
+ */
+function ual_webform_libanswers_node_load($nodes, $types)
+{
+  $result = db_select('webform')
+    ->fields('webform')
+    ->condition('nid', array_keys($nodes), 'IN')
+    ->execute()
+    ->fetchAllAssoc('nid', PDO::FETCH_ASSOC);
 
+  foreach ($result as $nid => $webform) {
+    $nodes[$nid]->libanswer_ticket_settings = db_select('ual_webform_libanswers_tickets')
+      ->fields('ual_webform_libanswers_tickets')
+      ->condition('nid', $nid)
+      ->execute()
+      ->fetchAssoc();
+  }
+}
 
 /**
  * Implements hook_menu()

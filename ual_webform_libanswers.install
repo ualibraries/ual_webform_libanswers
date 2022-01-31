@@ -1,0 +1,83 @@
+<?php
+
+/**
+ * @file
+ * Webform module install/schema hooks.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function ual_webform_libanswers_schema() {
+  $schema = array();
+
+  $schema['ual_webform_libanswers_tickets'] = array(
+    'description' => 'Holds information regarding e-mails that should be sent upon submitting a webform',
+    'fields' => array(
+      'nid' => array(
+        'description' => 'The node identifier of a webform.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'generate_ticket' => array(
+        'description' => 'Boolean value of a webform whether or not a LibAnswers ticket is generated.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'quid' => array(
+        'description' => 'The id of the queue the ticket is assigned to.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'pemail' => array(
+        'description' => 'Email address associated with ticket. If a numeric value is used, the value of a component will be substituted on submission.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'pname' => array(
+        'description' => 'Email address associated with ticket. If a numeric value is used, the value of a component will be substituted on submission.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'pquestion' => array(
+        'description' => 'The e-mail subject that will be used. This may be a string, the special key "default" or a numeric value. If a numeric value is used, the value of a component will be substituted on submission. If a numeric value is used, the value of a component will be substituted on submission.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+      'template' => array(
+        'description' => 'A template that will be used for the ticket format. This may be a string or the special key "default", which will use the template provided by the theming layer.',
+        'type' => 'text',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('nid'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function ual_webform_libanswers_install() {
+  module_load_include('inc', 'node', 'content_types');
+  db_update('system')
+    ->condition('name', 'ual_webform_libanswers')
+    ->condition('type', 'module')
+    ->fields(array('weight' => -1))
+    ->execute();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+//function ual_webform_libanswers_uninstall() {
+//  // Unset webform variables.
+//  variable_del('libasnwers_');
+//}

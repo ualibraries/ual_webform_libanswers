@@ -11,22 +11,25 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['#tree'] = TRUE;
   $form['#node'] = $node;
 
+  $libanswers = $node->libanswer_ticket_settings;
+
   $form['generate_libanswers_ticket'] = array(
     '#type' => 'checkbox',
     '#title' => t('Generate a ticket in Libanswers'),
-    '#default_value' => variable_get(LIBANSWERS_VAR_PREFIX . $node->nid, 0)
+    '#default_value' => $libanswers['generate_ticket']
   );
   $form['libanswers_ticket_quid'] = array(
     '#title' => t('Libanswers question id'),
     '#type' => 'textfield',
     '#size' => 40,
-    '#default_value' => NULL,
+    '#default_value' => $libanswers['generate_ticket'],
     '#maxlength' => 500,
   );
   $form['pquestion_option'] = array(
     '#title' => t('Libanswers ticket question title'),
     '#description' => t('The question text of the ticket.'),
     '#type' => 'radios',
+    '#default_value' => is_numeric($libanswers['pquestion']) ? 'component' : (($libanswers['pquestion'] && $libanswers['pquestion'] != 'default') ? 'custom' : 'default'),
     '#options' => array(
       'default' =>  t('Default: %value', array('%value' => webform_replace_tokens(webform_variable_get('webform_default_subject'), $node))),
       'custom' => t('Custom'),
@@ -42,7 +45,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $component_options = webform_component_list($node, NULL, FALSE);
   $form['pquestion_component'] = array(
     '#type' => 'select',
-    '#default_value' => NULL,
+    '#default_value' => is_numeric($libanswers['pquestion']) ? $libanswers['pquestion'] : NULL,
     '#options' => empty($component_options) ? array('' => t('No available components')) : $component_options,
     '#disabled' => empty($component_options),
     '#weight' => 6,
@@ -56,6 +59,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pname_option'] = array(
     '#title' => t('Patron name'),
     '#description' => t('Patron name associated with ticket.'),
+    '#default_value' => is_numeric($libanswers["pname"]) ? 'component' : (($libanswers["pname"] && $libanswers["pname"] != 'default') ? 'custom' : 'default'),
     '#type' => 'radios',
     '#options' => array(
       'default' =>  t('Default: University of Arizona Libraries'),
@@ -66,7 +70,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pname_custom'] = array(
     '#type' => 'textfield',
     '#size' => 40,
-    '#default_value' => NULL,
+    '#default_value' => "NEEEEEEEEEEEEEEEEEWWWWWWWWWWWW",
     '#maxlength' => 500,
   );
   $component_options = webform_component_list($node, NULL, FALSE);
@@ -77,14 +81,17 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#disabled' => empty($component_options),
     '#weight' => 6,
   );
+  $form['pname_custom']['#attributes']['class'][] = 'webform-set-active';
+  $form['pname_custom']['#theme_wrappers'] = array();
   $form['pname_option']['custom']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pname_option']['custom']['#title'] = t('Custom: !email', array('!email' => drupal_render($form['pname_custom'])));
+  $form['pname_option']['custom']['#title'] = t('Custom: !name', array('!name' => drupal_render($form['pname_custom'])));
   $form['pname_option']['component']['#theme_wrappers'] = array('webform_inline_radio');
   $form['pname_option']['component']['#title'] = t('Component: !component', array('!component' => drupal_render($form['pname_component'])));
 
   $form['pemail_option'] = array(
     '#title' => t('Patron e-mail address'),
     '#description' => t('Email address associated with ticket. Used for sending ticket reply information.'),
+    '#default_value' => is_numeric($libanswers['pemail']) ? 'component' : (($libanswers['pemail'] && $libanswers['pemail'] != 'default') ? 'custom' : 'default'),
     '#type' => 'radios',
     '#options' => array(
       'default' =>  t('Default: lbry-webadmin@email.arizona.edu'),
@@ -95,7 +102,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pemail_custom'] = array(
     '#type' => 'textfield',
     '#size' => 40,
-    '#default_value' => NULL,
+    '#default_value' => "andy@example.com",
     '#maxlength' => 500,
   );
   $form['pemail_custom']['#attributes']['placeholder'] = t('email@example.com');
@@ -131,19 +138,16 @@ function libanswers_ticket_form($form, $form_state, $node) {
       'default' => t('Default template'),
       'custom' => t('Custom template'),
     ),
-    '#default_value' => 'default',
-    //'#default_value' => $email['template'] == 'default' ? 'default' : 'custom',
+    '#default_value' => 'default'
   );
 
-  //$default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => $email));
   $default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
-  //$template = $email['template'] == 'default' ? $default_template : $email['template'];
   $template = $default_template;
   $form['libanswers_ticket_template_fields']['template'] = array(
     '#type' => 'textarea',
     '#rows' => max(10, min(20, count(explode("\n", $template)))),
     '#default_value' => $template,
-    '#wysiwyg' => webform_variable_get('webform_email_html_capable') ? NULL : FALSE,
+    '#wysiwyg' => FALSE,
     '#description' => theme('webform_token_help', array('groups' => array('node', 'submission'))),
   );
 
@@ -156,7 +160,42 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#value' => t('Save Libanswers ticket settings'),
   );
 
-  //$form['#validate'] = array('webform_email_address_validate', 'webform_email_edit_form_validate');
-  //drupal_render_children($form);
+  $form['#validate'] = array('libanswers_ticket_email_edit_form_validate');
+
 return $form;
+}
+
+/**
+ * Validate handler for libanswers_ticket_form().
+ */
+function libanswers_ticket_email_edit_form_validate($form, &$form_state) {
+  if ($form_state['values']['pemail_option'] == 'custom') {
+    webform_email_validate($form_state['values']['email_custom'], 'email_custom', FALSE, TRUE, TRUE);
+  }
+}
+
+/**
+ * Submit handler for libanswers_ticket_form().
+ */
+function libanswers_ticket_form_submit($form, &$form_state) {
+  // Ensure a webform record exists.
+  $node = $form['#node'];
+  webform_ensure_record($node);
+  $libanswer_ticket_settings = array(
+    'nid' => $node->nid,
+    'quid' => 1,
+    'pemail' => 'cao89@email.arizona.edu',
+    'pname' => 'Andy Osborne',
+    'pquestion' => 1,
+    'template' => NULL,
+  );
+  $libanswer_ticket_settings['generate_ticket'] = $form_state['values']['generate_libanswers_ticket'];
+  if($node->webform['libanswers_ticket'] == null) {
+    drupal_write_record('ual_webform_libanswers_tickets', $libanswer_ticket_settings);
+  } else {
+    drupal_write_record('ual_webform_libanswers_tickets', $libanswer_ticket_settings, array('nid'));
+  }
+
+  entity_get_controller('node')->resetCache(array($node->nid));
+  $form_state['redirect'] = array('node/' . $node->nid . '/webform/libanswers');
 }
