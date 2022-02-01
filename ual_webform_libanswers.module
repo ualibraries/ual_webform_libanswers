@@ -235,3 +235,23 @@ function libanswers_ticket_settings_handler(&$form, &$form_state) {
   $libasnwer_ticket_generation_var = LIBANSWERS_VAR_PREFIX . $form['#node']->nid;
   variable_set($libasnwer_ticket_generation_var, $form_state['input']['libanswers_ticket']);
 }
+/**
+ * Implements hook_theme().
+ */
+function ual_webform_libanswers_theme()
+{
+  $theme = array(
+    'libanswers_ticket_form' => array(
+      'render element' => 'form',
+      'file' => 'includes/ual_webform_libanswers_ticket.inc',
+    ),
+  );
+//  // Theme functions in all components.
+//  $components = webform_components(TRUE);
+//  foreach ($components as $type => $component) {
+//    if ($theme_additions = webform_component_invoke($type, 'theme')) {
+//      $theme = array_merge($theme, $theme_additions);
+//    }
+//  }
+  return $theme;
+}
