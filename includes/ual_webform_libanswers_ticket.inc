@@ -39,13 +39,13 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pquestion_custom'] = array(
     '#type' => 'textfield',
     '#size' => 40,
-    '#default_value' => NULL,
+    '#value' => (!is_numeric($libanswers['pquestion']) && $libanswers['pquestion'] != 'default') ? $libanswers['pquestion'] : NULL,
     '#maxlength' => 500,
   );
   $component_options = webform_component_list($node, NULL, FALSE);
   $form['pquestion_component'] = array(
     '#type' => 'select',
-    '#default_value' => is_numeric($libanswers['pquestion']) ? $libanswers['pquestion'] : NULL,
+    '#value' => is_numeric($libanswers['pquestion']) ? $libanswers['pquestion'] : NULL,
     '#options' => empty($component_options) ? array('' => t('No available components')) : $component_options,
     '#disabled' => empty($component_options),
     '#weight' => 6,
@@ -70,17 +70,18 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pname_custom'] = array(
     '#type' => 'textfield',
     '#size' => 40,
-    '#default_value' => "NEEEEEEEEEEEEEEEEEWWWWWWWWWWWW",
+    '#value' => (!is_numeric($libanswers['pname']) && $libanswers['pname'] != 'default') ? $libanswers['pname'] : NULL,
     '#maxlength' => 500,
   );
   $component_options = webform_component_list($node, NULL, FALSE);
   $form['pname_component'] = array(
     '#type' => 'select',
-    '#default_value' => NULL,
+    '#default_value' => is_numeric($libanswers['pname']) ? $libanswers['pname'] : NULL,
     '#options' => empty($component_options) ? array('' => t('No available components')) : $component_options,
     '#disabled' => empty($component_options),
     '#weight' => 6,
   );
+
   $form['pname_custom']['#attributes']['class'][] = 'webform-set-active';
   $form['pname_custom']['#theme_wrappers'] = array();
   $form['pname_option']['custom']['#theme_wrappers'] = array('webform_inline_radio');
@@ -102,7 +103,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pemail_custom'] = array(
     '#type' => 'textfield',
     '#size' => 40,
-    '#default_value' => "andy@example.com",
+    '#value' => (!is_numeric($libanswers['pemail']) && $libanswers['pemail'] != 'default') ? $libanswers['pemail'] : NULL,
     '#maxlength' => 500,
   );
   $form['pemail_custom']['#attributes']['placeholder'] = t('email@example.com');
@@ -111,7 +112,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $component_options = webform_component_list($node, 'email_address', FALSE);
   $form['pemail_component'] = array(
     '#type' => 'select',
-    '#default_value' => NULL,
+    '#value' => is_numeric($libanswers['pemail']) ? $libanswers['pemail'] : NULL,
     '#options' => empty($component_options) ? array('' => t('No available components')) : $component_options,
     '#disabled' => empty($component_options),
     '#weight' => 6,
@@ -122,7 +123,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['pemail_option']['component']['#theme_wrappers'] = array('webform_inline_radio');
   $form['pemail_option']['component']['#title'] = t('Component: !component', array('!component' => drupal_render($form['pemail_component'])));
 
-    $form['libanswers_ticket_template_fields'] = array(
+  $form['libanswers_ticket_template_fields'] = array(
     '#type' => 'fieldset',
     '#title' => t('LibAnswers ticket template'),
     '#collapsible' => TRUE,
@@ -162,7 +163,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
 
   $form['#validate'] = array('libanswers_ticket_email_edit_form_validate');
 
-return $form;
+  return $form;
 }
 
 /**
@@ -174,6 +175,54 @@ function libanswers_ticket_email_edit_form_validate($form, &$form_state) {
   }
 }
 
+function set_libanswers_ticket_settings($form_values, $nid) {
+  $quid = $form_values['libanswers_ticket_quid'];
+
+  $pemail_option = $form_values['pemail_option'];
+
+  if($pemail_option == 'component') {
+    $pemail = $form_values['pemail_component'];
+  } elseif ($pemail_option == 'custom') {
+    $pemail = $form_values['pemail_custom'];
+  } else {
+    $pemail = 'default';
+  }
+
+  $pname_option = $form_values['pname_option'];
+  if($pname_option == 'component') {
+    $pname = $form_values['pname_component'];
+  } elseif ($pname_option == 'custom') {
+    $pname = $form_values['pname_custom'];
+  } else {
+    $pname = 'default';
+  }
+
+  $pquestion_option = $form_values['pquestion_option'];
+  if($pquestion_option == 'component') {
+    $pquestion = $form_values['pquestion_component'];
+  } elseif ($pquestion_option == 'custom') {
+    $pquestion = $form_values['pquestion_custom'];
+  } else {
+    $pquestion = 'default';
+  }
+
+  $template_option = $form_values['libanswers_ticket_template_fields']['template_option'];
+  if($template_option == 'custom') {
+    $template = $form_values['libanswers_ticket_template_fields']['template'];
+  } else {
+    $template = 'default';
+  }
+
+  $libanswer_ticket_settings = array(
+    'nid' => $nid,
+    'quid' => $quid,
+    'pemail' => $pemail,
+    'pname' => $pname,
+    'pquestion' => $pquestion,
+    'template' => $template,
+  );
+  return $libanswer_ticket_settings;
+}
 /**
  * Submit handler for libanswers_ticket_form().
  */
@@ -181,16 +230,11 @@ function libanswers_ticket_form_submit($form, &$form_state) {
   // Ensure a webform record exists.
   $node = $form['#node'];
   webform_ensure_record($node);
-  $libanswer_ticket_settings = array(
-    'nid' => $node->nid,
-    'quid' => 1,
-    'pemail' => 'cao89@email.arizona.edu',
-    'pname' => 'Andy Osborne',
-    'pquestion' => 1,
-    'template' => NULL,
-  );
-  $libanswer_ticket_settings['generate_ticket'] = $form_state['values']['generate_libanswers_ticket'];
-  if($node->webform['libanswers_ticket'] == null) {
+  var_dump($form_state['values']);
+  exit();
+  $libanswer_ticket_settings = set_libanswers_ticket_settings($form_state['values'], $node->nid);
+
+  if($node->libanswer_ticket_settings == null) {
     drupal_write_record('ual_webform_libanswers_tickets', $libanswer_ticket_settings);
   } else {
     drupal_write_record('ual_webform_libanswers_tickets', $libanswer_ticket_settings, array('nid'));
