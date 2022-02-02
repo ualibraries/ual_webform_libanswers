@@ -21,9 +21,9 @@ function libanswers_ticket_form($form, $form_state, $node) {
   $form['libanswers_ticket_quid'] = array(
     '#title' => t('Libanswers question id'),
     '#type' => 'textfield',
-    '#size' => 40,
-    '#default_value' => $libanswers['generate_ticket'],
-    '#maxlength' => 500,
+    '#size' => 15,
+    '#default_value' => $libanswers['quid'],
+    '#maxlength' => 10,
   );
   $form['pquestion_option'] = array(
     '#title' => t('Libanswers ticket question title'),
@@ -110,7 +110,6 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#type' => 'fieldset',
     '#title' => t('LibAnswers ticket template'),
     '#collapsible' => TRUE,
-//      '#collapsed' => !empty($email['cid']) && empty($email['template']),
     '#description' => t('An e-mail template can customize the display of e-mails.'),
     '#weight' => 15,
     '#tree' => FALSE,
@@ -207,8 +206,9 @@ function libanswers_ticket_email_edit_form_validate($form, &$form_state) {
 function set_libanswers_ticket_settings($form_values, $nid) {
   $quid = $form_values['libanswers_ticket_quid'];
 
-  $pemail_option = $form_values['pemail_option'];
+  $generate_ticket = $form_values['generate_libanswers_ticket'];
 
+  $pemail_option = $form_values['pemail_option'];
   if($pemail_option == 'component') {
     $pemail = $form_values['pemail_component'];
   } elseif ($pemail_option == 'custom') {
@@ -244,6 +244,7 @@ function set_libanswers_ticket_settings($form_values, $nid) {
   }
 
   $libanswer_ticket_settings = array(
+    'generate_ticket' => $generate_ticket,
     'nid' => $nid,
     'quid' => $quid,
     'pemail' => $pemail,
