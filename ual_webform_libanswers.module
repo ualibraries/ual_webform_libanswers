@@ -87,53 +87,38 @@ function ual_webform_libanswers_form($form, &$form_state)
  */
 function ual_webform_libanswers_webform_submission_insert($node, $submission)
 {
-  $quid_map = [
-    'sc@lib.arizona.edu' => 33,
-    'lbry-askspcoll@email.arizona.edu' => 33,
-    '3d@lib.arizona.edu' => 820
-  ];
+  $libanswers = $node->libanswer_ticket_settings;
 
-  $emails = $node->webform['emails'];
-  foreach ($emails as $email) {
-    // Email sending is unchecked
-    $email_template = array(
-      'template' => 'default'
-    );
-
-    if (false) {
-      $to_addrs = array_map('strtolower', explode(',', $email['email']));
-
-      foreach ($to_addrs as $to_addr) {
-        if (array_key_exists($to_addr, $quid_map)) {
-          if ($email['template'] == 'default') {
-            $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'submission' => $submission, 'email' => $email));
-          } else {
-            $template = $email['template'];
-          }
-
-          $body = webform_replace_tokens($template, $node, $submission, $email, FALSE);
-          $from = webform_format_email_address($email['from_address'], $email['from_name'], $node, $submission, TRUE, TRUE, NULL, NULL);
-          $subject = webform_format_email_subject($email['subject'], $node, $submission);
-
-          preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
-
-          $params = [
-            'quid' => $quid_map[$to_addr],
-            'pquestion' => $subject,
-            'pdetails' => $body,
-            'pname' => $matches[1],
-            'pemail' => $matches[2],
-            'ip' => $submission->remote_addr
-          ];
-
-          $submissionUrl = url('node/' . $submission->nid . '/submission/' . $submission->sid, array('absolute' => TRUE));
-
-          _create_libanswers_ticket($params, $submissionUrl);
-        }
-      }
-    }
+  if(!$libanswers) {
+    return;
   }
-  exit();
+
+  if ($libanswers['generate_ticket']) {
+    if($libanswers['template'] == 'default') {
+      $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
+    } else {
+      $template = $libanswers['template'];
+    }
+
+    $quid = $libanswers['quid'];
+    $body = webform_replace_tokens($template, $node, $submission, NULL, FALSE);
+    $pquestion = webform_format_email_subject($libanswers['pquestion'], $node, $submission);
+    $from = webform_format_email_address($libanswers['pemail'], $libanswers['pname'], $node, $submission, TRUE, TRUE, NULL, NULL);
+
+    preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
+
+    $params = [
+      'quid' => $quid,
+      'pquestion' => $pquestion,
+      'pdetails' => $body,
+      'pname' => $matches[1],
+      'pemail' => $matches[2],
+      'ip' => $submission->remote_addr
+    ];
+
+    $submissionUrl = url('node/' . $submission->nid . '/submission/' . $submission->sid, array('absolute' => TRUE));
+    _create_libanswers_ticket($params, $submissionUrl);
+  }
 }
 
 function _create_libanswers_ticket($params, $submissionUrl)
@@ -186,55 +171,6 @@ function _post_slack_message($message)
   }
 }
 
-function ual_webform_libanswers_form_alter(&$form, &$form_state, $form_id) {
-  if($form_id == 'webform_configure_form') {
-    $node = $form['#node'];
-    $form['libanswers_ticket'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('LibAnswers ticket'),
-      '#collapsible' => TRUE,
-//      '#collapsed' => !empty($email['cid']) && empty($email['template']),
-      '#description' => t('An e-mail template can customize the display of e-mails.'),
-      '#weight' => 15,
-      '#tree' => FALSE,
-      '#attributes' => array('id' => 'webform-template-fieldset'),
-    );
-    $form['libanswers_ticket']['generate_ticket'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Generate a ticket in Libanswers'),
-      '#default_value' => variable_get(LIBANSWERS_VAR_PREFIX . $node->nid, 0)
-    );
-
-    $form['libanswers_ticket']['template_option'] = array(
-      '#type' => 'select',
-      '#options' => array(
-        'default' => t('Default template'),
-        'custom' => t('Custom template'),
-      ),
-      '#default_value' => 'default',
-      //'#default_value' => $email['template'] == 'default' ? 'default' : 'custom',
-    );
-
-    //$default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => $email));
-    $default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
-    //$template = $email['template'] == 'default' ? $default_template : $email['template'];
-    $template = $default_template;
-    $form['libanswers_ticket']['template'] = array(
-      '#type' => 'textarea',
-      '#rows' => max(10, min(20, count(explode("\n", $template)))),
-      '#default_value' => $template,
-      '#wysiwyg' => webform_variable_get('webform_email_html_capable') ? NULL : FALSE,
-      '#description' => theme('webform_token_help', array('groups' => array('node', 'submission'))),
-    );
-  }
-  $form['#submit'][] = 'libanswers_ticket_settings_handler';
-  return $form;
-}
-
-function libanswers_ticket_settings_handler(&$form, &$form_state) {
-  $libasnwer_ticket_generation_var = LIBANSWERS_VAR_PREFIX . $form['#node']->nid;
-  variable_set($libasnwer_ticket_generation_var, $form_state['input']['libanswers_ticket']);
-}
 /**
  * Implements hook_theme().
  */
@@ -246,12 +182,5 @@ function ual_webform_libanswers_theme()
       'file' => 'includes/ual_webform_libanswers_ticket.inc',
     ),
   );
-//  // Theme functions in all components.
-//  $components = webform_components(TRUE);
-//  foreach ($components as $type => $component) {
-//    if ($theme_additions = webform_component_invoke($type, 'theme')) {
-//      $theme = array_merge($theme, $theme_additions);
-//    }
-//  }
   return $theme;
 }
