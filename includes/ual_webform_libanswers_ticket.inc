@@ -17,7 +17,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   );
 
   $form['libanswers_ticket_quid'] = array(
-    '#title' => t('Libanswers question id'),
+    '#title' => t('Libanswers queue id'),
     '#type' => 'textfield',
     '#size' => 15,
     '#default_value' => $libanswers['quid'],
