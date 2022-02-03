@@ -115,6 +115,8 @@ function ual_webform_libanswers_webform_submission_insert($node, $submission)
       'pemail' => $matches[2],
       'ip' => $submission->remote_addr
     ];
+    var_dump($params);
+    exit();
 
     $submissionUrl = url('node/' . $submission->nid . '/submission/' . $submission->sid, array('absolute' => TRUE));
     _create_libanswers_ticket($params, $submissionUrl);

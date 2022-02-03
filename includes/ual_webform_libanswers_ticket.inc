@@ -1,13 +1,10 @@
 <?php
 
-const LIBANSWERS_VAR_PREFIX = "libanswers_ticket_nid";
-
 function libanswers_ticket_form($form, $form_state, $node) {
   module_load_include('inc', 'webform', 'includes/webform.components');
 
   $form['#attached']['library'][] = array('webform', 'admin');
   $form['#attached']['js'][] = array('data' => array('webform' => array('revertConfirm' => t('Are you sure you want to revert any changes to your template back to the default?'))), 'type' => 'setting');
-
   $form['#tree'] = TRUE;
   $form['#node'] = $node;
 
@@ -18,6 +15,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#title' => t('Generate a ticket in Libanswers'),
     '#default_value' => $libanswers['generate_ticket']
   );
+
   $form['libanswers_ticket_quid'] = array(
     '#title' => t('Libanswers question id'),
     '#type' => 'textfield',
@@ -25,6 +23,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#default_value' => $libanswers['quid'],
     '#maxlength' => 10,
   );
+
   $form['pquestion_option'] = array(
     '#title' => t('Libanswers ticket question title'),
     '#description' => t('The question text of the ticket.'),
@@ -42,6 +41,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#default_value' => (!is_numeric($libanswers['pquestion']) && $libanswers['pquestion'] != 'default') ? $libanswers['pquestion'] : NULL,
     '#maxlength' => 500,
   );
+
   $component_options = webform_component_list($node, NULL, FALSE);
   $form['pquestion_component'] = array(
     '#type' => 'select',
@@ -68,6 +68,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#default_value' => (!is_numeric($libanswers['pname']) && $libanswers['pname'] != 'default') ? $libanswers['pname'] : NULL,
     '#maxlength' => 500,
   );
+
   $component_options = webform_component_list($node, NULL, FALSE);
   $form['pname_component'] = array(
     '#type' => 'select',
@@ -94,6 +95,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
     '#default_value' => (!is_numeric($libanswers['pemail']) && $libanswers['pemail'] != 'default') ? $libanswers['pemail'] : NULL,
     '#maxlength' => 500,
   );
+
   $form['pemail_custom']['#attributes']['placeholder'] = t('email@example.com');
   $form['pemail_custom']['#attributes']['class'][] = 'webform-set-active';
 
@@ -121,7 +123,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
       'default' => t('Default template'),
       'custom' => t('Custom template'),
     ),
-    '#default_value' => $libanswers['template'] == 'default' ? 'default' : 'custom'
+    '#default_value' => $libanswers['template'] == 'custom' ? 'custom' : 'default'
   );
 
   $default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
@@ -147,46 +149,34 @@ function libanswers_ticket_form($form, $form_state, $node) {
 
   return $form;
 }
+
+/**
+ * Attatches a themes a field option (custom or component) and renders it as part of the title of the corresponding radio
+ * option. For example 'pname_custom' is a textfield that should appear next to the radio option 'Custom' under Pname.
+ * This function handles the theming for that.
+ * @param $form - Reference to Drupal $form object
+ * @param $field - The field of the option
+ * @param $option - Option for a particular field (i.e. custom)
+ * @return void
+ */
+function ual_webform_libanswers_ticket_set_field(&$form, $field, $option) {
+  $form[$field . '_' . $option]['#attributes']['class'][] = 'webform-set-active';
+  $form[$field . '_' . $option]['#theme_wrappers'] = array();
+  $form[$field . '_option'][$option]['#theme_wrappers'] = array('webform_inline_radio');
+  $form[$field . '_option'][$option]['#title'] = t('!title: !field', array('!title' => $form[$field . '_option'][$option]['#title'], '!field' => drupal_render($form[$field . '_' . $option])));
+}
+
 /**
  * Theme the Webform mail settings section of the node form.
  */
-function theme_libanswers_ticket_form($variables)
-{
+function theme_libanswers_ticket_form($variables) {
   $form = $variables['form'];
+  $ticket_fields = array('pname', 'pemail', 'pquestion');
 
-  $form['pname_custom']['#attributes']['class'][] = 'webform-set-active';
-  $form['pname_custom']['#theme_wrappers'] = array();
-  $form['pname_option']['custom']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pname_option']['custom']['#title'] = t('!title: !field', array('!title' => $form['pname_option']['custom']['#title'], '!field' => drupal_render($form['pname_custom'])));
-
-  $form['pname_component']['#attributes']['class'][] = 'webform-set-active';
-  $form['pname_component']['#theme_wrappers'] = array();
-  $form['pname_option']['component']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pname_option']['component']['#title'] = t('!title: !field', array('!title' => $form['pname_option']['component']['#title'], '!field' => drupal_render($form['pname_component'])));
-
-  $form['pemail_custom']['#attributes']['class'][] = 'webform-set-active';
-  $form['pemail_custom']['#theme_wrappers'] = array();
-  $form['pemail_option']['custom']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pemail_option']['custom']['#title'] = t('!title: !field', array('!title' => $form['pemail_option']['custom']['#title'], '!field' => drupal_render($form['pemail_custom'])));
-
-  $form['pemail_component']['#attributes']['class'][] = 'webform-set-active';
-  $form['pemail_component']['#theme_wrappers'] = array();
-  $form['pemail_option']['component']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pemail_option']['component']['#title'] = t('!title: !field', array('!title' => $form['pemail_option']['component']['#title'], '!field' => drupal_render($form['pemail_component'])));
-
-  $form['pquestion_custom']['#attributes']['class'][] = 'webform-set-active';
-  $form['pquestion_custom']['#theme_wrappers'] = array();
-  $form['pquestion_option']['custom']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pquestion_option']['custom']['#title'] = t('!title: !field', array('!title' => $form['pquestion_option']['custom']['#title'], '!field' => drupal_render($form['pquestion_custom'])));
-
-  $form['pquestion_component']['#attributes']['class'][] = 'webform-set-active';
-  $form['pquestion_component']['#theme_wrappers'] = array();
-  $form['pquestion_option']['component']['#theme_wrappers'] = array('webform_inline_radio');
-  $form['pquestion_option']['component']['#title'] = t('!title: !field', array('!title' => $form['pquestion_option']['component']['#title'], '!field' => drupal_render($form['pquestion_component'])));
-
-  // Ensure templates are completely hidden.
-  $form['templates']['#prefix'] = '<div id="webform-email-templates" style="display: none">';
-  $form['templates']['#suffix'] = '</div>';
+  foreach ($ticket_fields as $field) {
+    ual_webform_libanswers_ticket_set_field($form, $field, 'custom');
+    ual_webform_libanswers_ticket_set_field($form, $field, 'component');
+  }
 
   // Re-sort the elements since we added the details fieldset.
   $form['#sorted'] = FALSE;
@@ -194,6 +184,7 @@ function theme_libanswers_ticket_form($variables)
   $children = element_children($form, TRUE);
   return drupal_render_children($form, $children);
 }
+
 /**
  * Validate handler for libanswers_ticket_form().
  */
@@ -203,37 +194,38 @@ function libanswers_ticket_email_edit_form_validate($form, &$form_state) {
   }
 }
 
+/**
+ * Returns the value of the selected option based on the method of selection (e.g. custom, component select dropdown, etc)
+ * @param $field - Field that's being selected and for which it's value is being returned
+ * @param $form_values - Value of Drupals object $form_state['values']
+ * @return mixed|string
+ */
+function ual_webform_libanswers_set_field_values($field, $form_values) {
+  $field_option = $form_values[$field . '_option'];
+  if($field_option == 'component') {
+    return $form_values[$field . '_component'];
+  } elseif ($field_option == 'custom') {
+    return $form_values[$field . '_custom'];
+  } else {
+    return 'default';
+  }
+}
+
+/**
+ * Extracts form values submitted by a user, structures and returns an array that can be directly saved
+ * to the database for libanswer ticket settings
+ * @param $form_values - Value of Drupals object $form_state['values']
+ * @param $nid - Node id of the webform
+ * @return array
+ */
 function set_libanswers_ticket_settings($form_values, $nid) {
   $quid = $form_values['libanswers_ticket_quid'];
 
   $generate_ticket = $form_values['generate_libanswers_ticket'];
 
-  $pemail_option = $form_values['pemail_option'];
-  if($pemail_option == 'component') {
-    $pemail = $form_values['pemail_component'];
-  } elseif ($pemail_option == 'custom') {
-    $pemail = $form_values['pemail_custom'];
-  } else {
-    $pemail = 'default';
-  }
-
-  $pname_option = $form_values['pname_option'];
-  if($pname_option == 'component') {
-    $pname = $form_values['pname_component'];
-  } elseif ($pname_option == 'custom') {
-    $pname = $form_values['pname_custom'];
-  } else {
-    $pname = 'default';
-  }
-
-  $pquestion_option = $form_values['pquestion_option'];
-  if($pquestion_option == 'component') {
-    $pquestion = $form_values['pquestion_component'];
-  } elseif ($pquestion_option == 'custom') {
-    $pquestion = $form_values['pquestion_custom'];
-  } else {
-    $pquestion = 'default';
-  }
+  $pemail = ual_webform_libanswers_set_field_values('pemail', $form_values);
+  $pname = ual_webform_libanswers_set_field_values('pname', $form_values);
+  $pquestion = ual_webform_libanswers_set_field_values('pquestion', $form_values);
 
   $form_values['libanswers_ticket_template_fields']['template'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['template']);
   $form_values['templates']['default'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['templates']['default']);
@@ -254,6 +246,7 @@ function set_libanswers_ticket_settings($form_values, $nid) {
   );
   return $libanswer_ticket_settings;
 }
+
 /**
  * Submit handler for libanswers_ticket_form().
  */
