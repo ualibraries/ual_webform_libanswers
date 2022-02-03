@@ -123,7 +123,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
       'default' => t('Default template'),
       'custom' => t('Custom template'),
     ),
-    '#default_value' => $libanswers['template'] == 'custom' ? 'custom' : 'default'
+    '#default_value' => ($libanswers['template'] == NULL || $libanswers['template'] == 'default') ? 'default' : 'custom'
   );
 
   $default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
@@ -228,7 +228,13 @@ function set_libanswers_ticket_settings($form_values, $nid) {
   $pquestion = ual_webform_libanswers_set_field_values('pquestion', $form_values);
 
   $form_values['libanswers_ticket_template_fields']['template'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['template']);
-  $form_values['templates']['default'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['templates']['default']);
+
+  if(isset($form_values['templates'])) {
+    $form_values['templates']['default'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['templates']['default']);
+  } else {
+    $form_values['templates']['default'] = "";
+  }
+
   if(strcmp(trim($form_values['templates']['default']), trim($form_values['libanswers_ticket_template_fields']['template'])) == 0) {
     $template = 'default';
   } else {

@@ -1,8 +1,10 @@
 <?php
+// If your drupal site uses Composer manager, there is no need to require autoload
+// else it should be required.
+if(file_exists(__DIR__ . '/vendor/autoload.php')) {
+  require __DIR__ . '/vendor/autoload.php';
+}
 
-/**
- * Implements hook_node_load()
- */
 /**
  * Implements hook_node_load().
  */
