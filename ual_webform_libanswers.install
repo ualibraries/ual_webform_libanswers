@@ -8,7 +8,8 @@
 /**
  * Implements hook_schema().
  */
-function ual_webform_libanswers_schema() {
+function ual_webform_libanswers_schema()
+{
   $schema = array();
 
   $schema['ual_webform_libanswers_tickets'] = array(
@@ -41,12 +42,12 @@ function ual_webform_libanswers_schema() {
         'not null' => FALSE,
       ),
       'pname' => array(
-        'description' => 'Email address associated with ticket. If a numeric value is used, the value of a component will be substituted on submission.',
+        'description' => 'Patron name associated with ticket. If a numeric value is used, the value of a component will be substituted on submission.',
         'type' => 'text',
         'not null' => FALSE,
       ),
       'pquestion' => array(
-        'description' => 'The e-mail subject that will be used. This may be a string, the special key "default" or a numeric value. If a numeric value is used, the value of a component will be substituted on submission. If a numeric value is used, the value of a component will be substituted on submission.',
+        'description' => 'The e-mail subject that will be used. This may be a string, the special key "default" or a numeric value. If a numeric value is used, the value of a component will be substituted on submission.',
         'type' => 'text',
         'not null' => FALSE,
       ),
@@ -65,7 +66,8 @@ function ual_webform_libanswers_schema() {
 /**
  * Implements hook_install().
  */
-function ual_webform_libanswers_install() {
+function ual_webform_libanswers_install()
+{
   module_load_include('inc', 'node', 'content_types');
   db_update('system')
     ->condition('name', 'ual_webform_libanswers')

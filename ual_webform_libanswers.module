@@ -1,7 +1,7 @@
 <?php
 // If your drupal site uses Composer manager, there is no need to require autoload
 // else it should be required.
-if(file_exists(__DIR__ . '/vendor/autoload.php')) {
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
   require __DIR__ . '/vendor/autoload.php';
 }
 
@@ -31,7 +31,7 @@ function ual_webform_libanswers_node_load($nodes, $types)
 function ual_webform_libanswers_menu()
 {
   $items['node/%webform_menu/webform/libanswers'] = array(
-    'title' => 'Libanswers ticket',
+    'title' => 'LibAnswers ticket',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('libanswers_ticket_form', 1),
     'access callback' => 'webform_node_update_access',
@@ -91,12 +91,12 @@ function ual_webform_libanswers_webform_submission_insert($node, $submission)
 {
   $libanswers = $node->libanswer_ticket_settings;
 
-  if(!$libanswers) {
+  if (!$libanswers) {
     return;
   }
 
   if ($libanswers['generate_ticket']) {
-    if($libanswers['template'] == 'default') {
+    if ($libanswers['template'] == 'default') {
       $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
     } else {
       $template = $libanswers['template'];

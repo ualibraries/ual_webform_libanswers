@@ -12,12 +12,12 @@ function libanswers_ticket_form($form, $form_state, $node) {
 
   $form['generate_libanswers_ticket'] = array(
     '#type' => 'checkbox',
-    '#title' => t('Generate a ticket in Libanswers'),
+    '#title' => t('Generate a ticket in LibAnswers'),
     '#default_value' => $libanswers['generate_ticket']
   );
 
   $form['libanswers_ticket_quid'] = array(
-    '#title' => t('Libanswers queue id'),
+    '#title' => t('LibAnswers queue id'),
     '#type' => 'textfield',
     '#size' => 15,
     '#default_value' => $libanswers['quid'],
@@ -25,7 +25,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   );
 
   $form['pquestion_option'] = array(
-    '#title' => t('Libanswers ticket question title'),
+    '#title' => t('LibAnswers ticket question title'),
     '#description' => t('The question text of the ticket.'),
     '#type' => 'radios',
     '#default_value' => is_numeric($libanswers['pquestion']) ? 'component' : (($libanswers['pquestion'] && $libanswers['pquestion'] != 'default') ? 'custom' : 'default'),
@@ -142,7 +142,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   );
   $form['actions']['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Save Libanswers ticket settings'),
+    '#value' => t('Save LibAnswers ticket settings'),
   );
 
   $form['#validate'] = array('libanswers_ticket_email_edit_form_validate');
