@@ -1,12 +1,45 @@
 <?php
+// If your drupal site uses Composer manager, there is no need to require autoload
+// else it should be required.
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+  require __DIR__ . '/vendor/autoload.php';
+}
 
-require 'vendor/autoload.php';
+/**
+ * Implements hook_node_load().
+ */
+function ual_webform_libanswers_node_load($nodes, $types)
+{
+  $result = db_select('webform')
+    ->fields('webform')
+    ->condition('nid', array_keys($nodes), 'IN')
+    ->execute()
+    ->fetchAllAssoc('nid', PDO::FETCH_ASSOC);
+
+  foreach ($result as $nid => $webform) {
+    $nodes[$nid]->libanswer_ticket_settings = db_select('ual_webform_libanswers_tickets')
+      ->fields('ual_webform_libanswers_tickets')
+      ->condition('nid', $nid)
+      ->execute()
+      ->fetchAssoc();
+  }
+}
 
 /**
  * Implements hook_menu()
  */
 function ual_webform_libanswers_menu()
 {
+  $items['node/%webform_menu/webform/libanswers'] = array(
+    'title' => 'LibAnswers ticket',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('libanswers_ticket_form', 1),
+    'access callback' => 'webform_node_update_access',
+    'access arguments' => array(1),
+    'file' => 'includes/ual_webform_libanswers_ticket.inc',
+    'weight' => 4,
+    'type' => MENU_LOCAL_TASK,
+  );
   $items['admin/config/system/ual_webform_libanswers'] = array(
     'title' => 'UAL Webform LibAnswers',
     'description' => 'Configure UAL Webform LibAnswers module',
@@ -56,48 +89,37 @@ function ual_webform_libanswers_form($form, &$form_state)
  */
 function ual_webform_libanswers_webform_submission_insert($node, $submission)
 {
-  $quid_map = [
-    'sc@lib.arizona.edu' => 33,
-    'lbry-askspcoll@email.arizona.edu' => 33,
-    '3d@lib.arizona.edu' => 820
-  ];
+  $libanswers = $node->libanswer_ticket_settings;
 
-  $emails = $node->webform['emails'];
+  if (!$libanswers) {
+    return;
+  }
 
-  foreach ($emails as $email) {
-    // Email sending is unchecked
-    if (!$email['status']) {
-      $to_addrs = array_map('strtolower', explode(',', $email['email']));
-
-      foreach ($to_addrs as $to_addr) {
-        if (array_key_exists($to_addr, $quid_map)) {
-          if ($email['template'] == 'default') {
-            $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'submission' => $submission, 'email' => $email));
-          } else {
-            $template = $email['template'];
-          }
-
-          $body = webform_replace_tokens($template, $node, $submission, $email, FALSE);
-          $from = webform_format_email_address($email['from_address'], $email['from_name'], $node, $submission, TRUE, TRUE, NULL, NULL);
-          $subject = webform_format_email_subject($email['subject'], $node, $submission);
-
-          preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
-
-          $params = [
-            'quid' => $quid_map[$to_addr],
-            'pquestion' => $subject,
-            'pdetails' => $body,
-            'pname' => $matches[1],
-            'pemail' => $matches[2],
-            'ip' => $submission->remote_addr
-          ];
-
-          $submissionUrl = url('node/' . $submission->nid . '/submission/' . $submission->sid, array('absolute' => TRUE));
-
-          _create_libanswers_ticket($params, $submissionUrl);
-        }
-      }
+  if ($libanswers['generate_ticket']) {
+    if ($libanswers['template'] == 'default') {
+      $template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
+    } else {
+      $template = $libanswers['template'];
     }
+
+    $quid = $libanswers['quid'];
+    $body = webform_replace_tokens($template, $node, $submission, NULL, FALSE);
+    $pquestion = webform_format_email_subject($libanswers['pquestion'], $node, $submission);
+    $from = webform_format_email_address($libanswers['pemail'], $libanswers['pname'], $node, $submission, TRUE, TRUE, NULL, NULL);
+
+    preg_match('/^"(.+)" <(.+)>$/', $from, $matches);
+
+    $params = [
+      'quid' => $quid,
+      'pquestion' => $pquestion,
+      'pdetails' => $body,
+      'pname' => $matches[1],
+      'pemail' => $matches[2],
+      'ip' => $submission->remote_addr
+    ];
+
+    $submissionUrl = url('node/' . $submission->nid . '/submission/' . $submission->sid, array('absolute' => TRUE));
+    _create_libanswers_ticket($params, $submissionUrl);
   }
 }
 
@@ -149,4 +171,18 @@ function _post_slack_message($message)
   } catch (GuzzleHttp\Exception\RequestException $e) {
     watchdog('ual_webform_libanswers', 'Fail to send the slack message:<br>%message', array('%message' => $e->getMessage()), WATCHDOG_ERROR);
   }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function ual_webform_libanswers_theme()
+{
+  $theme = array(
+    'libanswers_ticket_form' => array(
+      'render element' => 'form',
+      'file' => 'includes/ual_webform_libanswers_ticket.inc',
+    ),
+  );
+  return $theme;
 }
