@@ -127,13 +127,22 @@ function libanswers_ticket_form($form, $form_state, $node) {
   );
 
   $default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
-  $template = $default_template;
+  $template = $libanswers['template'] == 'default' ? $default_template : $libanswers['template'];
   $form['libanswers_ticket_template_fields']['template'] = array(
     '#type' => 'textarea',
     '#rows' => max(10, min(20, count(explode("\n", $template)))),
-    '#default_value' => $libanswers['template'] == 'default' ? $default_template : $libanswers['template'],
+    '#default_value' => $template,
     '#wysiwyg' => FALSE,
     '#description' => theme('webform_token_help', array('groups' => array('node', 'submission'))),
+  );
+
+  $form['templates']['#tree'] = TRUE;
+  $form['templates']['default'] = array(
+    '#type' => 'textarea',
+    '#value' => $default_template,
+    '#resizable' => FALSE,
+    '#weight' => 19,
+    '#wysiwyg' => FALSE,
   );
 
   $form['actions'] = array(
@@ -177,6 +186,10 @@ function theme_libanswers_ticket_form($variables) {
     ual_webform_libanswers_ticket_set_field($form, $field, 'custom');
     ual_webform_libanswers_ticket_set_field($form, $field, 'component');
   }
+
+  // Ensure templates are completely hidden.
+  $form['templates']['#prefix'] = '<div id="webform-email-templates" style="display: none">';
+  $form['templates']['#suffix'] = '</div>';
 
   // Re-sort the elements since we added the details fieldset.
   $form['#sorted'] = FALSE;
@@ -228,12 +241,7 @@ function set_libanswers_ticket_settings($form_values, $nid) {
   $pquestion = ual_webform_libanswers_set_field_values('pquestion', $form_values);
 
   $form_values['libanswers_ticket_template_fields']['template'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['template']);
-
-  if(isset($form_values['templates'])) {
-    $form_values['templates']['default'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['templates']['default']);
-  } else {
-    $form_values['templates']['default'] = "";
-  }
+  $form_values['templates']['default'] = str_replace(array("\r", "\n"), array('', "\n"), $form_values['templates']['default']);
 
   if(strcmp(trim($form_values['templates']['default']), trim($form_values['libanswers_ticket_template_fields']['template'])) == 0) {
     $template = 'default';
