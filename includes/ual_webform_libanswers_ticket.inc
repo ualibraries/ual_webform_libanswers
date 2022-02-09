@@ -127,7 +127,7 @@ function libanswers_ticket_form($form, $form_state, $node) {
   );
 
   $default_template = theme(array('webform_mail_' . $node->nid, 'webform_mail', 'webform_mail_message'), array('node' => $node, 'email' => NULL));
-  $template = $libanswers['template'] == 'default' ? $default_template : $libanswers['template'];
+  $template = ($libanswers['template'] == NULL || $libanswers['template'] == 'default') ? $default_template : $libanswers['template'];
   $form['libanswers_ticket_template_fields']['template'] = array(
     '#type' => 'textarea',
     '#rows' => max(10, min(20, count(explode("\n", $template)))),
